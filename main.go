@@ -31,7 +31,7 @@ func (curve CurveBase) allXs() []int {
 	return getAllXs(curve.Values)
 }
 
-func compare(c1, c2 Curve, comparator func(x1, x2 int, c1, c2 Curve) float32, summarizor func(diffs map[int]float32) float32) (float32, int) {
+func compare(c1, c2 Curve, comparator func(x1, x2 int, y1, y2 float32) float32, summarizor func(diffs map[int]float32) float32) (float32, int) {
 	x1s := c1.allXs()
 	x2s := c2.allXs()
 
@@ -46,8 +46,8 @@ func compare(c1, c2 Curve, comparator func(x1, x2 int, c1, c2 Curve) float32, su
 	x1last := x1s[l1-1]
 	x2last := x2s[l2-1]
 	for x1, x2 := 0, 0; x1 <= x1last && x2 <= x2last; {
-		_, ok1 := c1.y(x1)
-		_, ok2 := c2.y(x2)
+		y1, ok1 := c1.y(x1)
+		y2, ok2 := c2.y(x2)
 
 		if !ok1 || !ok2 {
 			if ok1 || ok2 {
@@ -72,10 +72,47 @@ func compare(c1, c2 Curve, comparator func(x1, x2 int, c1, c2 Curve) float32, su
 			}
 		}
 
-		diffs[x1] = comparator(x1, x2, c1, c2)
+		diffs[x1] = comparator(x1, x2, y1, y2)
 	}
 
 	return summarizor(diffs), gapnum
+}
+
+func slope(in Curve) Curve {
+	values := make(map[int]float32)
+	xs := in.allXs()
+
+	l := len(xs) - 1
+
+	if l <= 1 {
+		return nil
+	}
+
+	x1 := xs[0]
+
+	for i := 1; i < l; i++ {
+		x2 := xs[i]
+		values[x1] = float32((x2 - x1) / x1)
+		x1 = x2
+	}
+
+	return CurveBase{
+		Values: values,
+	}
+}
+
+func minusComparator(x1, x2 int, y1, y2 float32) float32 {
+	return y1 - y2
+}
+
+func summarySummarizor(diffs map[int]float32) float32 {
+	summary := float32(0)
+
+	for _, diff := range diffs {
+		summary += diff
+	}
+
+	return summary
 }
 
 func test(curve Curve) {
@@ -83,7 +120,14 @@ func test(curve Curve) {
 }
 
 func main() {
-	myStock := Stock{
+	market := LoadAllMarketData()
+	stock1 := market.GetSmblCurve("GOLD", "Close")
+	stock2 := market.GetSmblCurve("AG", "Close")
+
+	diff, gapnum := compare(stock1, stock2, minusComparator, summarySummarizor)
+
+	fmt.Printf("%f, %d", diff, gapnum)
+	/*myStock := Stock{
 		Symbol: "My Stock",
 		CurveBase: CurveBase{
 			Values: map[int]float32{
@@ -91,9 +135,11 @@ func main() {
 				2: 2,
 			},
 		},
-	}
+	}*/
 
-	test(myStock)
+	/*if len(stock1.Values) > 0 {
+		test(stock1)
+	}*/
 }
 
 func getAllXs(inMap map[int]float32) []int {
