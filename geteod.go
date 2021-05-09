@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -41,15 +42,20 @@ type EodRecd struct {
 
 const (
 	NyseFileType = "NYSE_"
-	EodDir       = "edata"
+	EodDir       = "data"
 )
 
 func LoadAllMarketData() Market {
+	path, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+	}
+	fmt.Println(path) // for example /home/user
+
 	var m Market
 
 	m.Symbols = make(map[string]int)
 
-	var err error
 	if m.Dates, err = EodFileDates(); err != nil {
 		fmt.Printf("ERROR: failed to get all dates")
 		os.Exit(1)
@@ -165,7 +171,7 @@ func EodFileDates() ([]time.Time, error) {
 
 	sort.Strings(files)
 
-	r, _ := regexp.Compile(EodDir + "/" + NyseFileType + `([\d]{8})\.txt`)
+	r, _ := regexp.Compile(EodDir + "\\\\" + NyseFileType + `([\d]{8})\.txt`)
 
 	for i := range files {
 		sdate := r.FindStringSubmatch(files[i])
@@ -182,7 +188,7 @@ func EodFileDates() ([]time.Time, error) {
 func GetDirFileList(dir string, pattern string) []string {
 	var files []string
 
-	pattern = dir + "/" + pattern
+	pattern = dir + "\\" + pattern
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		matched, err1 := filepath.Match(pattern, path)
@@ -267,7 +273,7 @@ func (mrkt *Market) SymbolName(id int) string {
 	return ""
 }
 
-func (mrkt *Market) Date(index uint16) time.Time {
+func (mrkt *Market) Date(index int) time.Time {
 	return mrkt.Dates[index]
 }
 
@@ -315,6 +321,9 @@ func (mrkt Market) GetSmblCurve(smbl string, field string) Stock {
 			values[eod.DateIndx] = float32(f.Float())
 		}
 	}
+
+	iDate := rand.Intn(len(mrkt.Dates) - 1)
+	fmt.Printf("Symbol: %v, Date: %v, Symbol: %v, Value: %v\n", smbl, mrkt.Date(iDate), mrkt.Symbols[smbl], values[iDate])
 
 	return Stock{
 		Symbol: smbl,

@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Curve :
 type Curve interface {
@@ -73,6 +76,8 @@ func compare(c1, c2 Curve, comparator func(x1, x2 int, y1, y2 float32) float32, 
 		}
 
 		diffs[x1] = comparator(x1, x2, y1, y2)
+		x1++
+		x2++
 	}
 
 	return summarizor(diffs), gapnum
@@ -89,11 +94,15 @@ func slope(in Curve) Curve {
 	}
 
 	x1 := xs[0]
+	y1, _ := in.y(x1)
 
 	for i := 1; i < l; i++ {
 		x2 := xs[i]
-		values[x1] = float32((x2 - x1) / x1)
+		y2, _ := in.y(x2)
+
+		values[x1] = (y2 - y1) / float32(x2-x1)
 		x1 = x2
+		y1 = y2
 	}
 
 	return CurveBase{
@@ -115,6 +124,10 @@ func summarySummarizor(diffs map[int]float32) float32 {
 	return summary
 }
 
+func compareSlope(c1, c2 Curve) (float32, int) {
+	return compare(slope(c1), slope(c2), minusComparator, summarySummarizor)
+}
+
 func test(curve Curve) {
 	fmt.Println(curve.y(1))
 }
@@ -124,7 +137,7 @@ func main() {
 	stock1 := market.GetSmblCurve("GOLD", "Close")
 	stock2 := market.GetSmblCurve("AG", "Close")
 
-	diff, gapnum := compare(stock1, stock2, minusComparator, summarySummarizor)
+	diff, gapnum := compareSlope(stock1, stock2)
 
 	fmt.Printf("%f, %d", diff, gapnum)
 	/*myStock := Stock{
@@ -147,6 +160,8 @@ func getAllXs(inMap map[int]float32) []int {
 	for k := range inMap {
 		keys = append(keys, k)
 	}
+
+	sort.Ints(keys)
 
 	return keys
 }
